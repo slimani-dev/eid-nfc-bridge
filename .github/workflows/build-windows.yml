@@ -1,0 +1,42 @@
+name: Build Windows installer
+
+# Builds on a real windows-latest runner (which ships with MSVC + Python
+# preinstalled) so the pcsclite native addon is compiled for Windows/x64
+# instead of being packaged from whatever OS the release happened to be
+# built on. See WINDOWS-BRIDGE-TEST-HANDOVER.md for the incident this fixes.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Rebuild pcsclite native addon for Electron/win32/x64
+        run: npx electron-rebuild -f -w pcsclite
+
+      - name: Build installer
+        run: npx electron-builder --win --x64 --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: eID-NFC-Bridge-Setup-win
+          path: dist/*.exe
