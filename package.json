@@ -2,8 +2,11 @@
   "name": "eid-nfc-bridge",
   "version": "1.0.0",
   "description": "Local HTTP bridge that reads an ICAO 9303 eMRTD biometric ID card over a USB NFC reader (BAC authentication, MRZ + chip data) and serves it to a local client app. No data is ever persisted or transmitted elsewhere.",
-  "author": "Mohamed Slimani",
-  "license": "UNLICENSED",
+  "author": {
+    "name": "Mohamed Slimani",
+    "email": "mohamed@slimani.dev"
+  },
+  "license": "MIT",
   "type": "module",
   "main": "electron-main.js",
   "scripts": {
