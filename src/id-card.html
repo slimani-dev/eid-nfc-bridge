@@ -243,23 +243,22 @@
     .front-photo-large {
       position: absolute;
       top: 39.5%;
-      left: 4%;
-      width: 23%;
-      height: 50.5%;
+      left: 4.5%;
+      width: 23.5%;
+      height: 51%;
       object-fit: cover;
       /* cqi, not px — a fixed px radius doesn't scale with the card, so it
          looks proportionally right only at the one size it was picked at
-         (too sharp on a large window, too round/blobby on a small one).
-         30px at the card's native 856px width = 30/8.56 ≈ 3.5cqi. */
+         (too sharp on a large window, too round/blobby on a small one). */
       border-radius: 3.5cqi;
     }
 
     /* Small ghost thumbnail (center-top window) */
     .front-photo-ghost {
       position: absolute;
-      top: 36.5%;
+      top: 37.7%;
       left: 33%;
-      width: 11.5%;
+      width: 10.5%;
       height: 18.5%;
       object-fit: cover;
       border-radius: 3.5cqi;
@@ -364,10 +363,10 @@
     /* Ghost photo in transparent window (flipped horizontally) */
     .back-photo-ghost {
       position: absolute;
-      top: 36%;
-      left: 56%;
-      width: 11.5%;
-      height: 18.5%;
+      top: 38%;
+      left: 55.5%;
+      width: 11.8%;
+      height: 18.9%;
       object-fit: cover;
       border-radius: 3.5cqi;
       filter: grayscale(1);
@@ -378,10 +377,10 @@
 
     .back-signature {
       position: absolute;
-      top: 47%;
-      left: 81%;
-      width: 11.5%;
-      height: 11%;
+      top: 43.9%;
+      left: 78%;
+      width: 11.3%;
+      height: 15.4%;
       object-fit: contain;
       /* 3px at native width ≈ 0.35cqi — see .front-photo-large for why cqi. */
       border-radius: 0.35cqi;
@@ -399,7 +398,7 @@
 
     .back-mrz {
       position: absolute;
-      top: 66%;
+      top: 70.5%;
       left: 3%;
       font-family: 'OCR-B', monospace;
       font-weight: 400;
