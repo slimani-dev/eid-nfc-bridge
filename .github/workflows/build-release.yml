@@ -38,7 +38,7 @@ jobs:
         run: npx electron-rebuild -f -w pcsclite
 
       - name: Build installer
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win --x64 --publish never
 
       - uses: actions/upload-artifact@v4
         with:
@@ -63,7 +63,7 @@ jobs:
         run: npx electron-rebuild -f -w pcsclite
 
       - name: Build installer
-        run: npx electron-builder --linux deb
+        run: npx electron-builder --linux deb --publish never
 
       - uses: actions/upload-artifact@v4
         with:
