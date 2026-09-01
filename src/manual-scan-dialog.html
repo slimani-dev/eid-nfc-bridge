@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Manual Scan</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, 'Segoe UI', Inter, sans-serif;
+      font-size: 13px;
+      background: #f0f0f0;
+      color: #1a1a1a;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      user-select: none;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: #444;
+      margin-bottom: 3px;
+    }
+
+    label:not(:first-child) {
+      margin-top: 10px;
+    }
+
+    input {
+      width: 100%;
+      padding: 5px 7px;
+      font-size: 13px;
+      font-family: inherit;
+      border: 1px solid #adadad;
+      border-radius: 3px;
+      background: #fff;
+      color: #1a1a1a;
+      user-select: text;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb;
+    }
+
+    input:disabled {
+      opacity: .6;
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 11px;
+      min-height: 14px;
+    }
+
+    .status.error {
+      color: #c0392b;
+    }
+
+    .status.pending {
+      color: #8a5a00;
+    }
+
+    .buttons {
+      margin-top: auto;
+      padding-top: 14px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    button {
+      min-width: 72px;
+      padding: 5px 12px;
+      font-size: 12px;
+      border-radius: 3px;
+      border: 1px solid #adadad;
+      cursor: pointer;
+      font-family: inherit;
+      background: #fafafa;
+      color: #1a1a1a;
+    }
+
+    button:hover {
+      background: #f0f0f0;
+    }
+
+    button.ok {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
+
+    button.ok:hover {
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: default;
+    }
+  </style>
+</head>
+
+<body>
+  <label for="docnum">Doc Number</label>
+  <input type="text" id="docnum" autocomplete="off" />
+
+  <label for="dob">Date of Birth (YYMMDD)</label>
+  <input type="text" id="dob" autocomplete="off" placeholder="010101" />
+
+  <label for="doe">Date of Expiry (YYMMDD)</label>
+  <input type="text" id="doe" autocomplete="off" placeholder="301231" />
+
+  <div class="status" id="status"></div>
+
+  <div class="buttons">
+    <button id="cancel-btn">Cancel</button>
+    <button class="ok" id="ok-btn">OK</button>
+  </div>
+
+  <script>
+    var params = new URLSearchParams(location.search);
+    var port = params.get('port');
+    var inputs = [document.getElementById('docnum'), document.getElementById('dob'), document.getElementById('doe')];
+    var okBtn = document.getElementById('ok-btn');
+    var cancelBtn = document.getElementById('cancel-btn');
+    var status = document.getElementById('status');
+
+    document.getElementById('docnum').focus();
+
+    cancelBtn.addEventListener('click', function () {
+      window.close();
+    });
+
+    okBtn.addEventListener('click', submit);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') submit();
+      if (e.key === 'Escape') window.close();
+    });
+
+    function setStatus(text, kind) {
+      status.textContent = text;
+      status.className = 'status' + (kind ? ' ' + kind : '');
+    }
+
+    function submit() {
+      var docNum = document.getElementById('docnum').value.trim();
+      var dob = document.getElementById('dob').value.trim();
+      var doe = document.getElementById('doe').value.trim();
+
+      if (!docNum || !dob || !doe) {
+        setStatus('Fill in all three fields.', 'error');
+        return;
+      }
+
+      inputs.forEach(function (el) { el.disabled = true; });
+      okBtn.disabled = true;
+      cancelBtn.disabled = true;
+      setStatus('Waiting for card — tap now…', 'pending');
+
+      fetch('http://127.0.0.1:' + port + '/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docNum: docNum, dob: dob, doe: doe }),
+      })
+        .then(function (res) {
+          return res.json().then(function (body) {
+            return { ok: res.ok, body: body };
+          });
+        })
+        .then(function (result) {
+          if (result.ok) {
+            // The scan's own 'result' event drives the preview window's
+            // update over its own IPC bus — this dialog's only job now is
+            // to get out of the way.
+            window.close();
+          } else {
+            setStatus('Failed: ' + (result.body && result.body.error ? result.body.error : 'unknown error'), 'error');
+            inputs.forEach(function (el) { el.disabled = false; });
+            okBtn.disabled = false;
+            cancelBtn.disabled = false;
+          }
+        })
+        .catch(function (err) {
+          setStatus('Request failed: ' + err.message, 'error');
+          inputs.forEach(function (el) { el.disabled = false; });
+          okBtn.disabled = false;
+          cancelBtn.disabled = false;
+        });
+    }
+
+    // Pre-fill from whatever was last attempted this session, same
+    // convenience the old inline form had.
+    fetch('http://127.0.0.1:' + port + '/scan/last-mrz')
+      .then(function (res) { return res.json(); })
+      .then(function (mrz) {
+        if (mrz.docNum) document.getElementById('docnum').value = mrz.docNum;
+        if (mrz.dob) document.getElementById('dob').value = mrz.dob;
+        if (mrz.doe) document.getElementById('doe').value = mrz.doe;
+      })
+      .catch(function () {
+        // Bridge unreachable — leave blank.
+      });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,64 @@
+{
+  "name": "eid-nfc-bridge",
+  "version": "1.0.0",
+  "description": "Local HTTP bridge that reads an ICAO 9303 eMRTD biometric ID card over a USB NFC reader (BAC authentication, MRZ + chip data) and serves it to a local client app. No data is ever persisted or transmitted elsewhere.",
+  "author": "Mohamed Slimani",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "electron-main.js",
+  "scripts": {
+    "prestart": "electron-rebuild -w pcsclite",
+    "start": "electron . --no-sandbox",
+    "start:headless": "node src/server.js",
+    "dist:win": "electron-builder --win --x64",
+    "dist:linux": "electron-builder --linux deb"
+  },
+  "dependencies": {
+    "pcsclite": "^1.0.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "dev.slimani.eid-nfc-bridge",
+    "productName": "eID NFC Bridge",
+    "copyright": "Copyright © Mohamed Slimani",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-main.js",
+      "preload.cjs",
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "icon": "assets/icon-256.png",
+      "category": "Utility"
+    },
+    "nsis": {
+      "artifactName": "${productName} Setup.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    }
+  }
+}

@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>ID Card — Calibrator</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0d1117;
+      --surf: #161b22;
+      --surf2: #1c2128;
+      --border: #30363d;
+      --acc: #22c55e;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --panel: 290px;
+      --bar: 48px;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr var(--panel);
+      grid-template-rows: var(--bar) 1fr;
+      height: 100vh;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--surf);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+    }
+
+    .title {
+      font-weight: 600;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .tab-grp {
+      display: flex;
+      gap: 3px;
+      margin-left: 6px;
+    }
+
+    .tab {
+      padding: 4px 13px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      font-size: 11px;
+      font-weight: 500;
+      background: transparent;
+      color: var(--muted);
+      transition: all .15s;
+    }
+
+    .tab.active {
+      background: rgba(34, 197, 94, .12);
+      border-color: rgba(34, 197, 94, .3);
+      color: var(--acc);
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    /* Step selector */
+    .step-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 3px 10px;
+    }
+
+    .step-lbl {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .step-btns {
+      display: flex;
+      gap: 2px;
+    }
+
+    .step-btn {
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+      transition: all .15s;
+    }
+
+    .step-btn.on {
+      background: var(--acc);
+      border-color: var(--acc);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .step-custom {
+      width: 44px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      text-align: center;
+      padding: 2px 4px;
+      height: 23px;
+    }
+
+    .step-custom:focus {
+      outline: 1px solid var(--acc);
+    }
+
+    .btn-save {
+      padding: 6px 14px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+
+    .btn-save:hover {
+      opacity: .85;
+    }
+
+    .btn-copy {
+      padding: 6px 14px;
+      background: var(--acc);
+      color: #000;
+      border: none;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+
+    .btn-copy:hover {
+      opacity: .85;
+    }
+
+    .btn-reset {
+      width: 28px;
+      height: 28px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
+
+    .btn-reset:hover {
+      background: #2d333b;
+      color: var(--text);
+      border-color: #484f58;
+    }
+
+    /* ── Canvas ── */
+    .canvas {
+      background: #08090d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    /* Card: fills canvas with aspect-ratio — no JS transform needed */
+    .card-wrap {
+      /*
+        Width = smaller of:
+          - full canvas width (minus topbar padding)
+          - height-constrained: (vh - topbar - padding*2) × (856/540)
+      */
+      width: min(calc(100vw - var(--panel) - 1px - 48px),
+          calc((100vh - var(--bar) - 48px) * 1.5852));
+      aspect-ratio: 856 / 540;
+      /* container-type: inline-size enables cqi units for children */
+      container-type: inline-size;
+      position: relative;
+      border-radius: 22px;
+      box-shadow: 0 28px 70px rgba(0, 0, 0, .85);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .card-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    @font-face {
+      font-family: 'OCR-B';
+      font-style: normal;
+      font-weight: normal;
+      src: local('OCR-B'),
+        url('../assets/fonts/OCR-B.ttf') format('truetype'),
+        url('../assets/fonts/OCR-B.otf') format('opentype');
+    }
+
+    /* All fields use Arial Bold by default */
+    .f {
+      position: absolute;
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-weight: 700;
+      color: #1c2a08;
+      white-space: nowrap;
+      line-height: 1;
+      outline: 1.5px dashed transparent;
+      transition: outline .1s;
+    }
+
+    .f.hl {
+      outline: 1.5px dashed rgba(34, 197, 94, .85);
+    }
+
+    /* Only MRZ uses OCR-B */
+    .f-mrz {
+      font-family: 'OCR-B', monospace;
+      font-weight: 400;
+    }
+
+    .f-ltr {
+      direction: ltr;
+    }
+
+    .f-rtl {
+      direction: rtl;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surf);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .global-sect {
+      background: rgba(34, 197, 94, .05);
+      border-bottom: 1px solid rgba(34, 197, 94, .14);
+      padding: 9px 11px;
+      flex-shrink: 0;
+    }
+
+    .global-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--acc);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    /* +/- row */
+    .ctrl {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 4px;
+    }
+
+    .ctrl:last-child {
+      margin-bottom: 0;
+    }
+
+    .ctrl-lbl {
+      font-size: 10px;
+      color: var(--muted);
+      width: 40px;
+      flex-shrink: 0;
+    }
+
+    .pm {
+      width: 24px;
+      height: 24px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 300;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      user-select: none;
+      transition: background .1s, border-color .1s;
+      line-height: 1;
+    }
+
+    .pm:hover {
+      background: #2d333b;
+      border-color: #484f58;
+    }
+
+    .pm:active {
+      background: var(--acc);
+      border-color: var(--acc);
+      color: #000;
+    }
+
+    .val {
+      flex: 1;
+      min-width: 0;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      text-align: center;
+      padding: 2px 3px;
+      height: 24px;
+    }
+
+    .val:focus {
+      outline: 1px solid var(--acc);
+    }
+
+    .unit {
+      font-size: 10px;
+      color: var(--muted);
+      width: 26px;
+      flex-shrink: 0;
+    }
+
+    /* Field list */
+    .fields {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sect-hdr {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      border-top: 1px solid var(--border);
+      padding: 5px 1px 2px;
+      margin-top: 2px;
+    }
+
+    .fcard {
+      background: rgba(255, 255, 255, .025);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 8px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+
+    .fcard:hover {
+      border-color: #484f58;
+    }
+
+    .fcard.on {
+      border-color: var(--acc);
+      background: rgba(34, 197, 94, .05);
+    }
+
+    .fcard-name {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 5px;
+    }
+
+    .fcard.on .fcard-name {
+      color: var(--acc);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: var(--acc);
+      color: #000;
+      padding: 7px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+
+    <!-- ── Top bar ── -->
+    <div class="topbar">
+      <span class="title">🪪 Calibrator</span>
+      <div class="tab-grp">
+        <button class="tab active" onclick="showFace('front')">Front (Arabic)</button>
+        <button class="tab" onclick="showFace('back')">Back (French)</button>
+      </div>
+      <div class="spacer"></div>
+
+      <!-- Step selector -->
+      <div class="step-wrap">
+        <span class="step-lbl">Step</span>
+        <div class="step-btns" id="step-btns">
+          <button class="step-btn" onclick="setStep(.1)">.1</button>
+          <button class="step-btn on" onclick="setStep(.5)">.5</button>
+          <button class="step-btn" onclick="setStep(1)">1</button>
+          <button class="step-btn" onclick="setStep(2)">2</button>
+          <button class="step-btn" onclick="setStep(5)">5</button>
+        </div>
+        <input class="step-custom" id="step-custom" type="number" value="0.5" min="0.01" step="0.01"
+          onchange="setStep(+this.value)" title="Custom step" />
+      </div>
+
+      <div class="btn-group" style="display:flex;gap:6px;">
+        <button class="btn-save" onclick="saveConfig()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          Save
+        </button>
+        <button class="btn-copy" onclick="copyCSS()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          Copy CSS
+        </button>
+        <button class="btn-reset" onclick="resetConfig()" title="Reset to defaults">
+          ↺
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Canvas ── -->
+    <!-- ── Canvas ── -->
+    <div class="canvas" id="canvas">
+      <!-- FRONT -->
+      <div class="card-wrap" id="face-front">
+        <img class="card-bg" src="../assets/card-front.png" />
+        <img class="f f-img" data-id="photo-large" src="../assets/sample-photo.png"
+             style="top:39.5%;left:4%;width:23%;height:50.5%;object-fit:cover;border-radius:30px;" />
+        <img class="f f-img" data-id="photo-ghost-front" src="../assets/sample-photo.png"
+             style="top:36.5%;left:33%;width:11.5%;height:18.5%;object-fit:cover;border-radius:30px;filter:grayscale(1);opacity:0.45;mix-blend-mode:multiply;" />
+
+        <div class="f f-ltr" data-id="card-number"
+          style="top:24.5%;left:29.2%;right:51%;text-align:center;color:#18100a;font-size:3cqi;">208345304</div>
+        <div class="f f-rtl" data-id="issuing-auth" style="top:28.4%;right:16%;text-align:right;font-size:3cqi;">بلدية عين الذهب-تيارت</div>
+        <div class="f f-rtl" data-id="date-issue" style="top:34.8%;right:16%;text-align:right;font-size:3cqi;">2022.09.29</div>
+        <div class="f f-rtl" data-id="date-expiry" style="top:40.9%;right:16%;text-align:right;font-size:3cqi;">2032.09.28</div>
+        <div class="f f-rtl" data-id="nin"
+          style="top:58.4%;right:20.5%;text-align:right;font-size:3cqi;letter-spacing:.12cqi;">109930449003850008</div>
+        <div class="f f-rtl" data-id="surname" style="top:63.8%;right:9%;text-align:right;font-size:3cqi;">سليماني</div>
+        <div class="f f-rtl" data-id="firstname" style="top:74.9%;right:9.5%;text-align:right;font-size:3cqi;">محمد</div>
+        <div class="f f-rtl" data-id="dob" style="top:85.9%;right:15%;text-align:right;font-size:3cqi;">1993.05.28</div>
+        <div class="f f-rtl" data-id="pob" style="top:91.1%;right:15%;text-align:right;font-size:3cqi;">عين الذهب</div>
+        <div class="f f-rtl" data-id="gender" style="top:86%;left:53.4%;font-size:3cqi;">ذكر</div>
+        <div class="f f-ltr" data-id="blood" style="top:86%;left:39.3%;color:#18100a;font-size:3cqi;">O+</div>
+      </div>
+
+      <!-- BACK -->
+      <div class="card-wrap" id="face-back" style="display:none;">
+        <img class="card-bg" src="../assets/card-back.jpg" />
+        <div class="f f-ltr" data-id="nom" style="top:6.5%;left:12.5%;font-size:3cqi;">SLIMANI</div>
+        <div class="f f-ltr" data-id="prenom" style="top:16.5%;left:18.5%;font-size:3cqi;">MOHAMED</div>
+        <div class="f f-ltr" data-id="birth-year"
+          style="top:33.5%;left:36%;color:#2a2010;font-size:3cqi;">1993</div>
+
+        <!-- Ghost photo in transparent window: flipped horizontally (scaleX(-1)) with grayscale & transparency -->
+        <img class="f f-img" data-id="photo-ghost-back" src="../assets/sample-photo.png"
+             style="top:36%;left:56%;width:11.5%;height:18.5%;object-fit:cover;border-radius:30px;filter:grayscale(1);opacity:0.45;transform:scaleX(-1);mix-blend-mode:multiply;" />
+
+        <!-- Signature -->
+        <img class="f f-img" data-id="signature" src="../assets/sample-signature.png"
+             style="top:47%;left:81%;width:11.5%;height:11%;object-fit:contain;border-radius:3px;mix-blend-mode:multiply;" />
+
+        <pre class="f f-mrz f-ltr" data-id="mrz"
+          style="top:66%;left:3%;color:#0a0a0a;font-size:3.5cqi;font-weight:400;letter-spacing:.05cqi;line-height:1.72;white-space:pre;">IDDZA2083453045&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+9305281M3209284DZA&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;4
+SLIMANI&lt;&lt;MOHAMED&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</pre>
+      </div>
+    </div>
+
+    <!-- ── Panel ── -->
+    <div class="panel">
+      <!-- Font controls -->
+      <div class="global-sect">
+        <div class="global-title">Font Size (cqi)</div>
+        <div class="ctrl">
+          <span class="ctrl-lbl">Base</span>
+          <button class="pm" onclick="chgFont('base',-1)">−</button>
+          <input class="val" id="base-fs" type="number" value="3" min="0.2" max="10" step="0.01"
+            onchange="setFont('base',+this.value)">
+          <span class="unit">cqi</span>
+          <button class="pm" onclick="chgFont('base',+1)">+</button>
+        </div>
+        <div class="ctrl" id="mrz-ctrl" style="display:none;">
+          <span class="ctrl-lbl">MRZ</span>
+          <button class="pm" onclick="chgFont('mrz',-1)">−</button>
+          <input class="val" id="mrz-fs" type="number" value="3.5" min="0.2" max="10" step="0.01"
+            onchange="setFont('mrz',+this.value)">
+          <span class="unit">cqi</span>
+          <button class="pm" onclick="chgFont('mrz',+1)">+</button>
+        </div>
+      </div>
+
+      <!-- Field list -->
+      <div class="fields" id="fields"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">✓ CSS copied to clipboard</div>
+
+  <script>
+    /* ── State ── */
+    let step = 0.5;
+    let baseCqi = 3;
+    let mrzCqi = 3.5;
+    let face = 'front';
+
+    const FIELDS = {
+      front: [
+        { id: 'card-number', label: 'Card Number', props: ['top', 'left', 'right'], top: 24.5, left: 29.2, right: 51 },
+        { id: 'issuing-auth', label: 'Issuing Auth', props: ['top', 'right'], top: 28.4, right: 16 },
+        { id: 'date-issue', label: 'Date of Issue', props: ['top', 'right'], top: 34.8, right: 16 },
+        { id: 'date-expiry', label: 'Expiry Date', props: ['top', 'right'], top: 40.9, right: 16 },
+        { id: 'nin', label: 'NIN', props: ['top', 'right'], top: 58.4, right: 20.5 },
+        { id: 'surname', label: 'Surname', props: ['top', 'right'], top: 63.8, right: 9 },
+        { id: 'firstname', label: 'First Name', props: ['top', 'right'], top: 74.9, right: 9.5 },
+        { id: 'dob', label: 'Date of Birth', props: ['top', 'right'], top: 85.9, right: 15 },
+        { id: 'pob', label: 'Place of Birth', props: ['top', 'right'], top: 91.1, right: 15 },
+        { id: 'gender', label: 'Gender', props: ['top', 'left'], top: 86, left: 53.4 },
+        { id: 'blood', label: 'Blood Type', props: ['top', 'left'], top: 86, left: 39.3 },
+        { id: 'photo-large', label: '🖼️ Photo (Large)', isImg: true, props: ['top', 'left', 'width', 'height', 'radius'], top: 39.5, left: 4, width: 23, height: 50.5, radius: 30 },
+        { id: 'photo-ghost-front', label: '🖼️ Ghost Photo (Center)', isImg: true, props: ['top', 'left', 'width', 'height', 'opacity', 'radius'], top: 36.5, left: 33, width: 11.5, height: 18.5, opacity: 45, radius: 30 },
+      ],
+      back: [
+        { id: 'nom', label: 'Nom', props: ['top', 'left'], top: 6.5, left: 12.5 },
+        { id: 'prenom', label: 'Prénom', props: ['top', 'left'], top: 16.5, left: 18.5 },
+        { id: 'birth-year', label: 'Birth Year', props: ['top', 'left'], top: 33.5, left: 36 },
+        { id: 'photo-ghost-back', label: '🖼️ Ghost Photo (Flipped)', isImg: true, props: ['top', 'left', 'width', 'height', 'opacity', 'radius'], top: 36, left: 56, width: 11.5, height: 18.5, opacity: 45, radius: 30 },
+        { id: 'signature', label: '✍️ Signature', isImg: true, props: ['top', 'left', 'width', 'height', 'radius'], top: 47, left: 81, width: 11.5, height: 11, radius: 3 },
+        { id: 'mrz', label: 'MRZ', props: ['top', 'left'], top: 66, left: 3 },
+      ],
+    };
+
+    /* ── Step ── */
+    function setStep(v) {
+      step = +v;
+      document.getElementById('step-custom').value = v;
+      document.querySelectorAll('.step-btn').forEach(b => {
+        const bv = parseFloat(b.textContent);
+        b.classList.toggle('on', bv === step);
+      });
+    }
+
+    /* ── Font ── */
+    function chgFont(type, dir) {
+      if (type === 'base') setFont('base', +(baseCqi + dir * step).toFixed(3));
+      else setFont('mrz', +(mrzCqi + dir * step).toFixed(3));
+    }
+    function setFont(type, val) {
+      val = Math.max(0.2, Math.min(10, +val.toFixed(3)));
+      if (type === 'base') {
+        baseCqi = val;
+        document.getElementById('base-fs').value = val;
+        // Apply to all non-MRZ text fields on current face
+        const el = document.getElementById('face-' + face);
+        el.querySelectorAll('[data-id]').forEach(e => {
+          if (e.dataset.id !== 'mrz' && !e.classList.contains('f-img')) {
+            e.style.fontSize = val + 'cqi';
+          }
+        });
+      } else {
+        mrzCqi = val;
+        document.getElementById('mrz-fs').value = val;
+        const m = document.querySelector('[data-id="mrz"]');
+        if (m) m.style.fontSize = val + 'cqi';
+      }
+    }
+
+    /* ── Field adjust ── */
+    function adj(id, prop, dir) {
+      const f = FIELDS[face].find(x => x.id === id);
+      if (!f) return;
+      f[prop] = +((f[prop] ?? 0) + dir * step).toFixed(3);
+      applyProp(f, prop);
+      const inp = document.getElementById(`${id}-${prop}`);
+      if (inp) inp.value = f[prop];
+    }
+    function setVal(id, prop, v) {
+      const f = FIELDS[face].find(x => x.id === id);
+      if (!f) return;
+      f[prop] = +parseFloat(v).toFixed(3);
+      applyProp(f, prop);
+    }
+    // faceName defaults to the currently active tab (adj()/setVal() rely on
+    // that), but loadSavedConfig()/resetConfig()/showFace() need to paint
+    // fields belonging to the *other*, currently-hidden face — passing it
+    // explicitly there is what makes that work.
+    function applyProp(f, prop, faceName = face) {
+      const card = document.getElementById('face-' + faceName);
+      const el = card && card.querySelector(`[data-id="${f.id}"]`);
+      if (!el) return;
+      if (prop === 'opacity') {
+        el.style.opacity = (f.opacity / 100);
+      } else if (prop === 'radius') {
+        el.style.borderRadius = f.radius + 'px';
+      } else {
+        el.style[prop] = f[prop] + '%';
+      }
+    }
+
+    // Re-applies every field's current values onto the DOM for one face.
+    // Needed after load/reset (which update FIELDS for a face that may not
+    // be the active tab) and on tab switch (so a face restored while it was
+    // hidden actually shows its saved positions instead of the HTML defaults).
+    function syncFaceStyles(faceName) {
+      const card = document.getElementById('face-' + faceName);
+      if (!card) return;
+      FIELDS[faceName].forEach(f => {
+        const el = card.querySelector(`[data-id="${f.id}"]`);
+        if (!el) return;
+        f.props.forEach(p => applyProp(f, p, faceName));
+        if (!f.isImg) {
+          const fs = f.id === 'mrz' ? mrzCqi : baseCqi;
+          el.style.fontSize = fs + 'cqi';
+        }
+      });
+    }
+
+    /* ── Highlight ── */
+    function hl(id) {
+      document.querySelectorAll('.f').forEach(e => e.classList.remove('hl'));
+      document.querySelectorAll('.fcard').forEach(e => e.classList.remove('on'));
+      const card = document.getElementById('face-' + face);
+      const el = card.querySelector(`[data-id="${id}"]`);
+      if (el) el.classList.add('hl');
+      document.getElementById('fc-' + id)?.classList.add('on');
+    }
+
+    /* ── Render panel ── */
+    function renderPanel() {
+      document.getElementById('mrz-ctrl').style.display = face === 'back' ? '' : 'none';
+      const fields = FIELDS[face];
+      let html = `<div class="sect-hdr">${face === 'front' ? 'Front Elements (%)' : 'Back Elements (%)'}</div>`;
+      fields.forEach(f => {
+        let rows = '';
+        f.props.forEach(prop => {
+          const v = f[prop] ?? 0;
+          const lbl = prop === 'top' ? 'T' : prop === 'left' ? 'L' : prop === 'right' ? 'R' : prop === 'width' ? 'W' : prop === 'height' ? 'H' : prop === 'radius' ? 'Rad' : 'Op';
+          const unit = prop === 'radius' ? 'px' : '%';
+          rows += `
+        <div class="ctrl">
+          <span class="ctrl-lbl">${lbl}</span>
+          <button class="pm" onclick="adj('${f.id}','${prop}',-1)">−</button>
+          <input class="val" id="${f.id}-${prop}" type="number" value="${v}" step="${step}"
+                 onchange="setVal('${f.id}','${prop}',this.value)">
+          <span class="unit">${unit}</span>
+          <button class="pm" onclick="adj('${f.id}','${prop}',+1)">+</button>
+        </div>`;
+        });
+        html += `
+      <div class="fcard" id="fc-${f.id}" onclick="hl('${f.id}')">
+        <div class="fcard-name">${f.label}</div>
+        ${rows}
+      </div>`;
+      });
+      document.getElementById('fields').innerHTML = html;
+    }
+
+    /* ── Face switch ── */
+    function showFace(f) {
+      face = f;
+      syncFaceStyles(f);
+      document.getElementById('face-front').style.display = f === 'front' ? '' : 'none';
+      document.getElementById('face-back').style.display = f === 'back' ? '' : 'none';
+      document.querySelectorAll('.tab').forEach((t, i) =>
+        t.classList.toggle('active', (i === 0 && f === 'front') || (i === 1 && f === 'back')));
+      document.querySelectorAll('.f').forEach(e => e.classList.remove('hl'));
+      renderPanel();
+    }
+
+    const STORAGE_KEY = 'eid_nfc_bridge_calibrator_v3';
+    const DEFAULT_FIELDS = JSON.parse(JSON.stringify(FIELDS));
+    const DEFAULT_BASE_CQI = 3;
+    const DEFAULT_MRZ_CQI = 3.5;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2300);
+    }
+
+    function saveConfig() {
+      const state = {
+        fields: FIELDS,
+        baseCqi: baseCqi,
+        mrzCqi: mrzCqi,
+        step: step,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      showToast('✓ Saved to browser storage!');
+    }
+
+    // Merge saved per-field values onto the current field defaults instead of
+    // replacing the list outright, so a config saved before a new prop (e.g.
+    // 'radius') was introduced doesn't wipe that prop back out.
+    function mergeFieldData(defaultList, savedList) {
+      if (!Array.isArray(savedList)) return defaultList;
+      const savedById = Object.fromEntries(savedList.map(f => [f.id, f]));
+      return defaultList.map(defaultField => {
+        const saved = savedById[defaultField.id];
+        if (!saved) return defaultField;
+        const merged = { ...defaultField };
+        defaultField.props.forEach(prop => {
+          if (saved[prop] != null) merged[prop] = saved[prop];
+        });
+        return merged;
+      });
+    }
+
+    function loadSavedConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (state.fields) {
+          if (state.fields.front) FIELDS.front = mergeFieldData(FIELDS.front, state.fields.front);
+          if (state.fields.back) FIELDS.back = mergeFieldData(FIELDS.back, state.fields.back);
+        }
+        if (state.baseCqi != null) baseCqi = state.baseCqi;
+        if (state.mrzCqi != null) mrzCqi = state.mrzCqi;
+        if (state.step != null) setStep(state.step);
+
+        ['front', 'back'].forEach(syncFaceStyles);
+
+        document.getElementById('base-fs').value = baseCqi;
+        document.getElementById('mrz-fs').value = mrzCqi;
+      } catch (e) {
+        console.error('Failed to load saved config:', e);
+      }
+    }
+
+    function resetConfig() {
+      if (!confirm('Reset all positions and sizes to defaults?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      FIELDS.front = JSON.parse(JSON.stringify(DEFAULT_FIELDS.front));
+      FIELDS.back = JSON.parse(JSON.stringify(DEFAULT_FIELDS.back));
+      baseCqi = DEFAULT_BASE_CQI;
+      mrzCqi = DEFAULT_MRZ_CQI;
+      document.getElementById('base-fs').value = baseCqi;
+      document.getElementById('mrz-fs').value = mrzCqi;
+
+      ['front', 'back'].forEach(syncFaceStyles);
+
+      renderPanel();
+      showToast('✓ Reset to defaults');
+    }
+
+    /* ── Copy CSS ── */
+    function copyCSS() {
+      const fields = FIELDS[face];
+      let css = `/* ${face === 'front' ? 'Front (Arabic)' : 'Back (French)'} */\n`;
+      css += `/* base font-size: ${baseCqi}cqi  (scales with card width) */\n\n`;
+      fields.forEach(f => {
+        const parts = [];
+        if (f.top != null) parts.push(`top: ${f.top}%`);
+        if (f.left != null) parts.push(`left: ${f.left}%`);
+        if (f.right != null) parts.push(`right: ${f.right}%`);
+        if (f.width != null) parts.push(`width: ${f.width}%`);
+        if (f.height != null) parts.push(`height: ${f.height}%`);
+        if (f.radius != null) parts.push(`border-radius: ${f.radius}px`);
+        if (f.opacity != null) parts.push(`opacity: ${(f.opacity / 100).toFixed(2)}`);
+        if (!f.isImg) {
+          const fs = f.id === 'mrz' ? mrzCqi : baseCqi;
+          parts.push(`font-size: ${fs}cqi`);
+        }
+        const cls = `.${face}-${f.id}`.padEnd(26);
+        css += `${cls}{ ${parts.join('; ')}; }\n`;
+      });
+      navigator.clipboard.writeText(css).then(() => {
+        showToast('✓ CSS copied to clipboard');
+      });
+    }
+
+    /* ── Init ── */
+    loadSavedConfig();
+    renderPanel();
+  </script>
+</body>
+
+</html>
