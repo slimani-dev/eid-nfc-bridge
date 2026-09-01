@@ -94,16 +94,36 @@ function extractImage(buf) {
  */
 function runReadCycle(reader, protocol, mrz, onProgress) {
   return new Promise((resolve, reject) => {
-    function send(label, buf) {
-      onProgress?.(label);
-      return new Promise((res) => {
+    function transmitOnce(buf) {
+      return new Promise((res, rej) => {
         reader.transmit(buf, 2048, protocol, (err, resp) => {
-          if (err) return res(null);
-          const sw = hex(resp.slice(resp.length - 2));
-          const data = resp.slice(0, resp.length - 2);
-          res({ data, sw });
+          if (err) return rej(err);
+          res(resp);
         });
       });
+    }
+
+    // A freshly-tapped contactless card has only been powered by the
+    // reader's RF field for a moment, and cheap CCID readers can drop a
+    // transmit here and there while that field/positioning settles — a
+    // card that was already resting on the reader doesn't hit this. Retry
+    // a couple of times before giving up instead of failing the whole scan
+    // on one transient glitch.
+    async function send(label, buf) {
+      onProgress?.(label);
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const resp = await transmitOnce(buf);
+          const sw = hex(resp.slice(resp.length - 2));
+          const data = resp.slice(0, resp.length - 2);
+          return { data, sw };
+        } catch (err) {
+          console.log(`[card-reader] transmit error on "${label}" (attempt ${attempt}/3): ${err.message}`);
+          if (attempt === 3) return null;
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      }
+      return null;
     }
 
     function sendProtected(label, state, { ins, p1, p2, data, le }) {
@@ -394,27 +414,36 @@ export function waitForCardAndRead(mrz, onProgress, onStatus) {
               console.log(`[card-reader] connect error: ${err.message}`);
               return;
             }
-            console.log(`[card-reader] connected, protocol=${protocol}, starting read cycle`);
-            runReadCycle(reader, protocol, mrz, (msg) => {
-              console.log(`[card-reader] progress: ${msg}`);
-              onProgress?.(msg);
-            })
-              .then((result) => {
-                if (handled) return;
-                handled = true;
-                console.log('[card-reader] read cycle succeeded');
-                onStatus?.('done');
-                reader.disconnect(reader.SCARD_LEAVE_CARD, () => cleanup());
-                resolve(result);
+            console.log(`[card-reader] connected, protocol=${protocol}, settling before read cycle`);
+            // A card that's been resting on the reader has had time for its
+            // RF power to stabilize; a card tapped moments ago hasn't. Give
+            // it a beat before firing off the BAC/read command sequence —
+            // without this, freshly-tapped cards can fail partway through
+            // (typically on the first data-reading command, e.g. EF.COM)
+            // even though the earlier crypto-only commands went through.
+            setTimeout(() => {
+              if (handled) return;
+              runReadCycle(reader, protocol, mrz, (msg) => {
+                console.log(`[card-reader] progress: ${msg}`);
+                onProgress?.(msg);
               })
-              .catch((e) => {
-                if (handled) return;
-                handled = true;
-                console.log(`[card-reader] read cycle failed: ${e.message}`);
-                onStatus?.('error');
-                reader.disconnect(reader.SCARD_LEAVE_CARD, () => cleanup());
-                reject(e);
-              });
+                .then((result) => {
+                  if (handled) return;
+                  handled = true;
+                  console.log('[card-reader] read cycle succeeded');
+                  onStatus?.('done');
+                  reader.disconnect(reader.SCARD_LEAVE_CARD, () => cleanup());
+                  resolve(result);
+                })
+                .catch((e) => {
+                  if (handled) return;
+                  handled = true;
+                  console.log(`[card-reader] read cycle failed: ${e.message}`);
+                  onStatus?.('error');
+                  reader.disconnect(reader.SCARD_LEAVE_CARD, () => cleanup());
+                  reject(e);
+                });
+            }, 250);
           });
         }
       });
